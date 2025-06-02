@@ -5,9 +5,9 @@ from typing import List
 from weaviate.collections.classes.filters import Filter
 
 # ENV variables
-WEAVIATE_URL = os.getenv("WEAVIATE_URL")
-WEAVIATE_API_KEY = os.getenv("WEAVIATE_API_KEY")
-OPENAI_KEY = os.getenv("OPENAI_KEY")
+WEAVIATE_URL = os.environ["WEAVIATE_URL"]
+WEAVIATE_API_KEY = os.environ["WEAVIATE_API_KEY"]
+OPENAI_KEY = os.environ["OPENAI_KEY"]
 
 client = weaviate.connect_to_weaviate_cloud(
     cluster_url=WEAVIATE_URL,
