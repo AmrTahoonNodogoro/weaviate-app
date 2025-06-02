@@ -2,11 +2,7 @@ from fastapi import FastAPI, Query
 import weaviate
 from weaviate.auth import AuthApiKey
 from typing import List
-from dotenv import load_dotenv
-import os
-
-# ENV variables
-load_dotenv()
+from weaviate.collections.classes.filters import Filter
 
 # ENV variables
 WEAVIATE_URL = os.getenv("WEAVIATE_URL")
@@ -29,33 +25,73 @@ def search_articles(q: str = Query(..., description="Search query string")):
         public_collection = client.collections.get("Public_Notice_Articles")
         ceqanet_collection = client.collections.get("Ceqanet_Articles")
 
+        # filter = Filter.by_property("content").equal(q.lower())
+        # public_results = public_collection.query.fetch_objects(
+        #     filters=filter,
+        #     return_properties=["title", "url", "content"],
+        #     limit=3
+        # )
+
+        # ceqanet_results = ceqanet_collection.query.fetch_objects(
+        #     filters=filter,
+        #     return_properties=["title", "url", "content"],
+        #     limit=3
+        # )
         public_results = public_collection.query.bm25(
             query=q,
-            limit=3,
-            return_properties=["title", "url"]
+            query_properties=["content"],
+            return_properties=["title", "url", "content"],
+            limit=10000
         )
-
         ceqanet_results = ceqanet_collection.query.bm25(
             query=q,
-            limit=3,
-            return_properties=["title", "url"]
+            query_properties=["content"],
+            return_properties=["title", "url", "content"],
+            limit=10000
         )
 
+
         results = []
+        seen_urls = set()
         for obj in public_results.objects:
             props = obj.properties
+            content = props.get("content", "")
+            url = props.get("url")
+            match_index = content.lower().find(q.lower())
+            if match_index == -1 or url in seen_urls:
+                continue
+            # Get a snippet of 40 characters before and after the match
+            start = max(match_index - 40, 0)
+            end = min(match_index + len(q) + 40, len(content))
+            match_context = content[start:end]
+
             results.append({
                 "title": props.get("title"),
-                "url": props.get("url")
+                "url": url,
+                # "match_position": match_index,
+                "match_context": match_context
             })
+            seen_urls.add(url)
 
         for obj in ceqanet_results.objects:
             props = obj.properties
+            content = props.get("content", "")
+            url = props.get("url")
+            match_index = content.lower().find(q.lower())
+            if match_index == -1 or url in seen_urls:
+                continue
+            # Get a snippet of 40 characters before and after the match
+            start = max(match_index - 40, 0)
+            end = min(match_index + len(q) + 40, len(content))
+            match_context = content[start:end]
+
             results.append({
                 "title": props.get("title"),
-                "url": props.get("url")
+                "url": url,
+                # "match_position": match_index,
+                "match_context": match_context
             })
-
+            seen_urls.add(url)
         return results
 
     except Exception as e:
